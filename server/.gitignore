@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+
+.env
+
+.DS_Store/
+.idea/
+
+# Logs
+logs/*.log
+uploads
+
+.DS_Store
