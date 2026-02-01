@@ -4,6 +4,8 @@ const { v4: uuidv4 } = require("uuid");
 const cors = require("cors");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { connectDB } = require("./db");
+const User = require("./user-model");
 require("dotenv").config();
 const port = process.env.PORT || 3200;
 
@@ -40,8 +42,8 @@ app.use(express.json());
 app.post("/api/get-presigned-url", async (req, res) => {
   const { mime } = req.body;
 
-  const fileName = uuidv4()
-  const finalName = `${fileName}.${mime}`
+  const fileName = uuidv4();
+  const finalName = `${fileName}.${mime}`;
 
   const url = await createPresignedUrlWithClient({
     bucket: process.env.S3_BUCKET_NAME,
@@ -51,24 +53,30 @@ app.post("/api/get-presigned-url", async (req, res) => {
   res.json({ url: url, finalName: finalName });
 });
 
-app.post("/api/products", () => {
+app.post("/api/products", async (req, res) => {
+  const { name, email, fileName } = req.body;
 
-  const {name, email, fileName} = req.body
-
-  if(!name || !email || !fileName){
-    return res.status(400).json({message: "All fields are required!"})
+  if (!name || !email || !fileName) {
+    return res.status(400).json({ message: "All fields are required!" });
   }
 
   //save to database
-  
+  const newUser = await User.create({
+    name,
+    email,
+    fileName,
+  });
 
-  res.json({message: "success!"})
-})
+  console.log("user", newUser);
+  res.json({ message: "success!", user: newUser });
+});
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+connectDB().then(() => {
+  app.listen(port, () => {
+    console.log(`this is the server http://localhost:${port}`);
+  });
 });
