@@ -1,28 +1,74 @@
-const express = require('express')
-const app = express()
-const port = 3200
+const express = require("express");
+const app = express();
+const { v4: uuidv4 } = require("uuid");
+const cors = require("cors");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+require("dotenv").config();
+const port = process.env.PORT || 3200;
 
-const cors = require('cors')
+const client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const createPresignedUrlWithClient = ({ bucket, key, contentType }) => {
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(client, command, { expiresIn: 3600 });
+};
 
 const corsOptions = {
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'], // your frontend url
-    optionsSuccessStatus: 200,
-    credentials: true,
-}
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+  ], // your frontend url
+  optionsSuccessStatus: 200,
+  credentials: true,
+};
 
-app.use(cors(corsOptions))
-app.use(express.json())
+app.use(cors(corsOptions));
+app.use(express.json());
 
-app.get('/get-presigned-url', (req, res) => {
-    // get the presigned URL logic here from s3
+app.post("/api/get-presigned-url", async (req, res) => {
+  const { mime } = req.body;
 
-    res.json({ url: '' })
+  const fileName = uuidv4()
+  const finalName = `${fileName}.${mime}`
+
+  const url = await createPresignedUrlWithClient({
+    bucket: process.env.S3_BUCKET_NAME,
+    key: finalName,
+    contentType: mime,
+  });
+  res.json({ url: url, finalName: finalName });
+});
+
+app.post("/api/products", () => {
+
+  const {name, email, fileName} = req.body
+
+  if(!name || !email || !fileName){
+    return res.status(400).json({message: "All fields are required!"})
+  }
+
+  //save to database
+  
+
+  res.json({message: "success!"})
 })
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+  console.log(`Example app listening on port ${port}`);
+});
